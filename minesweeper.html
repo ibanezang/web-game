@@ -1,0 +1,340 @@
+﻿<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3c.org/TR/1999/REC-html401-19991224/loose.dtd">
+<!-- saved from url=(0046)http://localhost:2456/Minesweeper/Default.aspx -->
+<HTML xmlns="http://www.w3.org/1999/xhtml"><HEAD><TITLE>Minesweeper</TITLE>
+<META http-equiv=Content-Type content="text/html; charset=utf-8">
+<SCRIPT language=javascript type=text/javascript>
+    // this array hold the minesweeper puzzle
+    var minemap;
+    // this array hold the revealed (clicked) item.
+    var revealmap;
+    // this array hold the flag item.
+    var flagmap;
+
+    var globalrow;
+    var globalcolumn;
+    var gameover;
+    var win;
+    var ObjMinesweeperMap = 'MinesweeperMap';
+    var InformationLabel = 'Information';
+    var opencount;
+    var minenumber;
+    var debugmode = false;
+
+    function minesweeperMapGenerator(row, column, mines)
+    {
+        gameover = false;
+        win = false;
+        opencount = 0;
+        globalrow = document.getElementById(row).value;
+        globalcolumn = document.getElementById(column).value;
+        minenumber = document.getElementById(mines).value;
+        //alert(globalrow + " " + globalcolumn + " " + minenumber);
+        // this array hold the minesweeper puzzle
+        minemap = null;
+        minemap = new Array(globalrow);
+        // this array hold the revealed (clicked) item.
+        revealmap = null;
+        revealmap = new Array(globalrow);
+        // this array hold the flag item.
+        flagmap = null;
+        flagmap = new Array(globalrow);
+
+        for(i = 0; i < globalrow; i++){
+            minemap[i] = new Array(globalcolumn);
+            revealmap[i] = new Array(globalcolumn);
+            flagmap[i] = new Array(globalcolumn);
+            for(j = 0; j < globalcolumn; j++){
+                minemap[i][j] = 0;
+                revealmap[i][j] = 0;
+                flagmap[i][j] = 0;
+            }
+        }
+
+        renderMap(globalrow, globalcolumn)
+    }
+
+    function renderMap(row, column)
+    {
+        var cellwidth = "20px";
+        var cellheight = "20px";
+        var htmlMap = "";
+
+        htmlMap = "<table border='1'>";
+        for(i = 0; i < row; i++){
+            htmlMap += "<tr>";
+            for(j = 0; j < column; j++){
+                //if not flagged
+                if(flagmap[i][j] == 0){
+                    if(revealmap[i][j] == 0){
+                        if(debugmode){
+                            htmlMap += "<td style='width:" + cellwidth +
+                            ";height:" + cellheight +
+                            ";background-color: blue;vertical-align: middle; text-align: center' oncontextmenu='return false;'"+
+                            "onmousedown='ClickAction(" + i + ", " + j + ");'><strong>" + minemap[i][j] + "<strong/></td>";
+                        }else{
+                            htmlMap += "<td style='width:" + cellwidth +
+                            ";height:" + cellheight +
+                            ";background-color: blue;vertical-align: middle; text-align: center' oncontextmenu='return false;'"+
+                            "onmousedown='ClickAction(" + i + ", " + j + ");'> </td>";
+                        }
+                    }
+                    if(revealmap[i][j] == 1){
+                        if(minemap[i][j] == 0){
+                            htmlMap += "<td style='width:" + cellwidth +
+                            ";height:" + cellheight +
+                            ";background-color: gray;vertical-align: middle; text-align: center' oncontextmenu='return false;'> </td>";
+                        }
+                        else{
+                            // if not a mine
+                            if(minemap[i][j] != -1){
+                                htmlMap += "<td style='width:" + cellwidth +
+                                ";height:" + cellheight +
+                                ";background-color: gray;vertical-align: middle; text-align: center' oncontextmenu='return false;'><strong>" + minemap[i][j] + "</strong></td>";
+                            }
+                            else{
+                                // if a mine
+                                htmlMap += "<td style='width:" + cellwidth +
+                                ";height:" + cellheight +
+                                ";background-color: red;vertical-align: middle; text-align: center' oncontextmenu='return false;'><strong>*</strong></td>";
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    //if flagged
+                    if(flagmap[i][j] == 1){
+                        if(revealmap[i][j] == 0){
+                            htmlMap += "<td style='width:" + cellwidth +
+                            ";height:" + cellheight +
+                            ";background-color: yellow;vertical-align: middle; text-align: center' "+
+                            "onmousedown='ClickAction(" + i + ", " + j + ");' oncontextmenu='return false;'><strong>!</strong></td>";
+                        }
+                    }
+                    if(flagmap[i][j] == 2){
+                        if(revealmap[i][j] == 0){
+                            htmlMap += "<td style='width:" + cellwidth +
+                            ";height:" + cellheight +
+                            ";background-color: yellow;vertical-align: middle; text-align: center' "+
+                            "onmousedown='ClickAction(" + i + ", " + j + ");' oncontextmenu='return false;'><strong>?</strong></td>";
+                        }
+                    }
+                }
+            }
+            htmlMap += "</tr>";
+        }
+        htmlMap += "</table>";
+
+        document.getElementById(ObjMinesweeperMap).innerHTML = htmlMap;
+    }
+
+    var sTestEventType='mousedown';
+
+    function handleMouseEvent(e) {
+        var evt = (e==null ? event:e);
+        var clickType = 'LEFT';
+        if (evt.type!='mousedown') return true;
+        if (evt.which) {
+            if (evt.which==3) clickType='RIGHT';
+            if (evt.which==2) clickType='MIDDLE';
+        }
+        else if (evt.button) {
+            if (evt.button==2) clickType='RIGHT';
+            if (evt.button==4) clickType='MIDDLE';
+        }
+        //alert(evt.type+': '+clickType+' button!');
+        return clickType;
+    }
+
+    function ClickAction(indexX, indexY)
+    {
+        var clickType = handleMouseEvent();
+        if(!win && !gameover){
+            if(clickType == "LEFT"){
+                //alert("ActionOpen("+ indexX  +", " + indexY +")");
+                ActionOpen(indexX, indexY);
+                checkWinOrLose();
+            }
+            if(clickType == "RIGHT"){
+                //alert("ActionFlag("+ indexX  +", " + indexY +")");
+                ActionFlag(indexX, indexY);
+            }
+        }
+    }
+
+    function ActionFlag(indexX, indexY)
+    {
+        if(flagmap[indexX][indexY] == 2)
+            flagmap[indexX][indexY] = 0;
+        else flagmap[indexX][indexY]++;
+        renderMap(globalrow, globalcolumn);
+    }
+
+    function ActionOpen(indexX, indexY)
+    {
+        if(opencount == 0){
+            randomMinePlacing(indexX, indexY);
+            calculateMineInRange();
+            renderMap(globalrow, globalcolumn);
+        }
+        if(flagmap[indexX][indexY] == 0){
+            opencount++;
+            revealmap[indexX][indexY] = 1;
+            renderMap(globalrow, globalcolumn);
+            if(minemap[indexX][indexY] == 0){
+                //left upper
+                if(indexX != 0 && indexY !=0)
+                    if(revealmap[indexX - 1][indexY - 1] == 0)
+                        ActionOpen(indexX - 1, indexY - 1);
+                // center upper
+                if(indexY != 0)
+                    if(revealmap[indexX][indexY - 1] == 0)
+                        ActionOpen(indexX, indexY - 1);
+                // right upper
+                if(indexX != (globalcolumn-1) && indexY != 0)
+                    if(revealmap[indexX + 1][indexY - 1] == 0)
+                        ActionOpen(indexX + 1, indexY - 1);
+                // left middle
+                if(indexX != 0)
+                    if(revealmap[indexX - 1][indexY] == 0)
+                        ActionOpen(indexX - 1, indexY);
+                //right middle
+                if(indexX != (globalcolumn - 1))
+                    if(revealmap[indexX + 1][indexY] == 0)
+                        ActionOpen(indexX + 1, indexY);
+                //left lower
+                if(indexX != 0 && indexY != (globalrow - 1))
+                    if(revealmap[indexX - 1][indexY + 1] == 0)
+                        ActionOpen(indexX - 1, indexY + 1);
+                //center lower
+                if(indexY != (globalrow - 1))
+                    if(revealmap[indexX][indexY + 1] == 0)
+                        ActionOpen(indexX, indexY + 1);
+                //right lower
+                if(indexX != (globalcolumn - 1) && indexY != (globalrow - 1))
+                    if(revealmap[indexX + 1][indexY + 1] == 0)
+                        ActionOpen(indexX + 1, indexY + 1);
+            }
+            // if opened a mine will be a game over
+            if(minemap[indexX][indexY] == -1){
+                gameover = true;
+                for(i = 0; i < globalrow; i++){
+                    for(j = 0; j < globalcolumn; j++){
+                        if(minemap[i][j] == -1){
+                            revealmap[i][j] = 1;
+                            flagmap[i][j] = 0;
+                        }
+                    }
+                }
+                renderMap(globalrow, globalcolumn);
+            }
+        }
+    }
+
+    function randomMinePlacing(indexX, indexY)
+    {
+        var mineCount = 0;
+        while(mineCount < minenumber){
+            var i = Math.floor(Math.random() * (globalrow));
+            var j = Math.floor(Math.random() * (globalcolumn));
+            if(minemap[i][j] != -1){
+                if(!(i == indexX && j == indexY) //same as initial click
+                    && !(i == (indexX - 1) && j == (indexY - 1)) //on the upperleft initial click
+                    && !(i == indexX && j == (indexY - 1)) //on the upper initial click
+                    && !(i == (indexX + 1) && j == (indexY - 1)) //on the upperright initial click
+                    && !(i == (indexX - 1) && j == indexY) //on the left initial click
+                    && !(i == (indexX + 1) && j == indexY) //on the right initial click
+                    && !(i == (indexX - 1) && j == (indexY + 1)) //on the bottom left initial click
+                    && !(i == indexX  && j == (indexY + 1)) //on the bottom initial click
+                    && !(i == (indexX + 1) && j == (indexY + 1))) //on the bottom right initial click
+                 {
+                    minemap[i][j] = -1;
+                    mineCount++;
+                 }
+             }
+        }
+    }
+
+    function calculateMineInRange(){
+        for(i = 0; i < globalrow; i++){
+            for(j = 0; j < globalcolumn; j++){
+                if(minemap[i][j] == -1){
+                    //left upper
+                    if(i != 0 && j !=0)
+                    if(minemap[i - 1][j - 1] != -1)
+                        minemap[i - 1][j - 1]++;
+                    // center upper
+                    if(j != 0)
+                    if(minemap[i][j - 1] != -1)
+                        minemap[i][j - 1]++;
+                    // right upper
+                    if(i != (globalcolumn-1) && j != 0)
+                    if(minemap[i + 1][j - 1] != -1)
+                        minemap[i + 1][j - 1]++;
+                    // left middle
+                    if(i != 0)
+                    if(minemap[i - 1][j] != -1)
+                        minemap[i - 1][j]++;
+                    //right middle
+                    if(i != (globalcolumn - 1))
+                    if(minemap[i + 1][j] != -1)
+                        minemap[i + 1][j]++;
+                    //left lower
+                    if(i != 0 && j != (globalrow - 1))
+                    if(minemap[i - 1][j + 1] != -1)
+                        minemap[i - 1][j + 1]++;
+                    //center lower
+                    if(j != (globalrow - 1))
+                    if(minemap[i][j + 1] != -1)
+                        minemap[i][j + 1]++;
+                    //right lower
+                    if(i != (globalcolumn - 1) && j != (globalrow - 1))
+                    if(minemap[i + 1][j + 1] != -1)
+                        minemap[i + 1][j + 1]++;
+                }
+            }
+        }
+    }
+
+    function checkWinOrLose(){
+        if(opencount == ((globalcolumn * globalrow) - minenumber) && !gameover){
+            win = true;
+            document.getElementById(InformationLabel).innerHTML = 'Cell Opened : ' + opencount + ' (to win you need '+((globalcolumn * globalrow) - minenumber)+')';
+            alert('Congratulation You Have Won The Game!!');
+        }
+        else{
+            document.getElementById(InformationLabel).innerHTML = 'Cell Opened : ' + opencount + ' (to win you need '+((globalcolumn * globalrow) - minenumber)+')';
+        }
+        if(gameover){
+            alert('Too Bad You Have Stepped On The Mine!!');
+        }
+    }
+
+    </SCRIPT>
+
+<META content="MSHTML 6.00.3790.3959" name=GENERATOR></HEAD>
+<BODY>
+<FORM id=form1 name=form1 action=Default.aspx method=post>
+<DIV><INPUT id=__VIEWSTATE type=hidden
+value=/wEPDwUJNzgzNDMwNTMzZGQM5C17/DeHFmAyDP26N4Hlsx7jbA== name=__VIEWSTATE>
+</DIV>
+<TABLE>
+  <TBODY>
+  <TR>
+    <TD style="WIDTH: 100px">Max Row</TD>
+    <TD style="WIDTH: 100px">:</TD>
+    <TD style="WIDTH: 100px"><INPUT id=MaxRow value=10></TD></TR>
+  <TR>
+    <TD style="WIDTH: 100px">Max Column</TD>
+    <TD style="WIDTH: 100px">:</TD>
+    <TD style="WIDTH: 100px"><INPUT id=MaxColumn value=10></TD></TR>
+  <TR>
+    <TD style="WIDTH: 100px">Mine Number</TD>
+    <TD style="WIDTH: 100px">:</TD>
+    <TD style="WIDTH: 100px"><INPUT id=MaxMineNumber value=15></TD></TR>
+  <TR>
+    <TD style="WIDTH: 100px"></TD>
+    <TD style="WIDTH: 100px"></TD>
+    <TD style="WIDTH: 100px"><INPUT onclick="minesweeperMapGenerator('MaxRow','MaxColumn','MaxMineNumber');" type=button value="Start Game"></TD></TR></TBODY></TABLE><BR><BR><LABEL
+id=Information></LABEL>
+<DIV id=MinesweeperMap></DIV></FORM></BODY></HTML>
